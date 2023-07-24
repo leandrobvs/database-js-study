@@ -1,28 +1,36 @@
-// Dado o comando:
+const database = {
+  tables: {},
+  createTable(statement) {
+    const regexp = /create table (\w+) \((.+)\)/;
+    const parsedStatemant = statement.match(regexp);
 
-// <br/>
+    let tableName = parsedStatemant[1];
+    let columns = parsedStatemant[2];
+    columns = columns.split(', ');
 
-// ```sql
-// create table author (id number, name string, age number, city string, state string, country string)
-// ```
+    this.tables[tableName] = {
+      columns: {},
+      data: [],
+    };
 
-// <br/>
+    for (let column of columns) {
+      column = column.split(' ');
 
-// 1. Extraia o nome da tabela e armazene em uma variável chamada "tableName".
-// 2. Extraia as colunas da tabela e armazene em uma variável chamada "columns".
-// 3. Manipule a variável "columns", separando cada coluna com seu respectivo tipo, em uma string separada.
+      const name = column[0];
+      const type = column[1];
 
-// <br/>
+      this.tables[tableName].columns[name] = type;
+    }
+  },
+  execute(statement) {
+    if (statement.startsWith('create table')) {
+      return this.createTable(statement);
+    }
+  },
+};
 
-const command =
-  'create table author (id number, name string, age number, city string, state string, country string)';
+database.execute(
+  'create table author (id number, name string, age number, city string, state string, country string)'
+);
 
-let regexp = /create table (\w+) \((.+)\)/;
-let parsedInfo = regexp.exec(command);
-
-let tableName = parsedInfo[1];
-let columns = parsedInfo[2];
-columns = columns.split(', ');
-
-console.log(tableName);
-console.log(columns);
+console.log(JSON.stringify(database, undefined, ' '));
