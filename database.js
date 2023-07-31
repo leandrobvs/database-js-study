@@ -1,17 +1,21 @@
-function DatabaseError(statement, message) {
-  this.message = `No valid command for "${statement}"`;
-  return message;
+class DatabaseError {
+  constructor(statement, message) {
+    this.message = `No valid command for "${statement}"`;
+    return message;
+  }
 }
 
-function Parser() {
-  const commands = new Map();
-  commands.set('createTable', /create table (\w+) \((.+)\)/);
-  commands.set('insert', /insert into (\w+) \((.+)\) values \((.+)\)/);
-  commands.set('select', /select (.+) from ([a-z]+)(?: where (.+))?/);
-  commands.set('delete', /delete from ([a-z]+)(?: where (.+))?/);
+class Parser {
+  constructor() {
+    this.commands = new Map();
+    this.commands.set('createTable', /create table (\w+) \((.+)\)/);
+    this.commands.set('insert', /insert into (\w+) \((.+)\) values \((.+)\)/);
+    this.commands.set('select', /select (.+) from ([a-z]+)(?: where (.+))?/);
+    this.commands.set('delete', /delete from ([a-z]+)(?: where (.+))?/);
+  }
 
-  this.parse = function (statement) {
-    for (let [command, regexp] of commands) {
+  parse(statement) {
+    for (let [command, regexp] of this.commands) {
       const parsedStatement = statement.match(regexp);
       if (parsedStatement) {
         return {
@@ -20,12 +24,15 @@ function Parser() {
         };
       }
     }
-  };
+  }
 }
 
-const database = {
-  tables: {},
-  parser: new Parser(),
+class Database {
+  constructor() {
+    this.tables = {};
+    this.parser = new Parser();
+  }
+
   createTable(parsedStatement) {
     let [, tableName, columns] = parsedStatement;
     columns = columns.split(', ');
@@ -40,7 +47,7 @@ const database = {
       const [name, type] = column;
       this.tables[tableName].columns[name] = type;
     }
-  },
+  }
   insert(parsedStatement) {
     let [, tableName, columns, values] = parsedStatement;
     columns = columns.split(', ');
@@ -53,7 +60,7 @@ const database = {
     }
 
     this.tables[tableName].data.push(row);
-  },
+  }
   select(parsedStatement) {
     let [, columns, tableName, whereClause] = parsedStatement;
     columns = columns.split(', ');
@@ -76,7 +83,7 @@ const database = {
     });
 
     return rows;
-  },
+  }
   delete(parsedStatement) {
     let [, tableName, whereClause] = parsedStatement;
 
@@ -90,17 +97,18 @@ const database = {
     } else {
       this.tables[tableName].data = [];
     }
-  },
+  }
   execute(statement) {
     const result = this.parser.parse(statement);
 
     if (result) {
       return this[result.command](result.parsedStatement);
-    } else {
-      throw new DatabaseError(statement);
     }
-  },
-};
+    throw new DatabaseError(statement);
+  }
+}
+
+let database = new Database();
 
 try {
   database.execute(
