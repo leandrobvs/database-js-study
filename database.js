@@ -3,13 +3,31 @@ function DatabaseError(statement, message) {
   return message;
 }
 
+function Parser() {
+  const commands = new Map();
+  commands.set('createTable', /create table (\w+) \((.+)\)/);
+  commands.set('insert', /insert into (\w+) \((.+)\) values \((.+)\)/);
+  commands.set('select', /select (.+) from ([a-z]+)(?: where (.+))?/);
+  commands.set('delete', /delete from ([a-z]+)(?: where (.+))?/);
+
+  this.parse = function (statement) {
+    for (let [command, regexp] of commands) {
+      const parsedStatement = statement.match(regexp);
+      if (parsedStatement) {
+        return {
+          command,
+          parsedStatement,
+        };
+      }
+    }
+  };
+}
+
 const database = {
   tables: {},
-  createTable(statement) {
-    const regexp = /create table (\w+) \((.+)\)/;
-    const parsedStatemant = statement.match(regexp);
-
-    let [, tableName, columns] = parsedStatemant;
+  parser: new Parser(),
+  createTable(parsedStatement) {
+    let [, tableName, columns] = parsedStatement;
     columns = columns.split(', ');
 
     this.tables[tableName] = {
@@ -23,11 +41,8 @@ const database = {
       this.tables[tableName].columns[name] = type;
     }
   },
-  insert(statement) {
-    const regexp = /insert into (\w+) \((.+)\) values \((.+)\)/;
-    const parsedStatemant = statement.match(regexp);
-
-    let [, tableName, columns, values] = parsedStatemant;
+  insert(parsedStatement) {
+    let [, tableName, columns, values] = parsedStatement;
     columns = columns.split(', ');
     values = values.split(', ');
 
@@ -39,10 +54,7 @@ const database = {
 
     this.tables[tableName].data.push(row);
   },
-  select(statement) {
-    const regexp = /select (.+) from ([a-z]+)(?: where (.+))?/;
-    const parsedStatement = statement.match(regexp);
-
+  select(parsedStatement) {
     let [, columns, tableName, whereClause] = parsedStatement;
     columns = columns.split(', ');
     let rows = this.tables[tableName].data;
@@ -65,9 +77,7 @@ const database = {
 
     return rows;
   },
-  delete(statement) {
-    const regexp = /delete from ([a-z]+)(?: where (.+))?/;
-    const parsedStatement = statement.match(regexp);
+  delete(parsedStatement) {
     let [, tableName, whereClause] = parsedStatement;
 
     if (whereClause) {
@@ -82,14 +92,10 @@ const database = {
     }
   },
   execute(statement) {
-    if (statement.startsWith('create table')) {
-      return this.createTable(statement);
-    } else if (statement.startsWith('insert')) {
-      return this.insert(statement);
-    } else if (statement.startsWith('select')) {
-      return this.select(statement);
-    } else if (statement.startsWith('delete')) {
-      return this.delete(statement);
+    const result = this.parser.parse(statement);
+
+    if (result) {
+      return this[result.command](result.parsedStatement);
     } else {
       throw new DatabaseError(statement);
     }
